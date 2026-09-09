@@ -21,6 +21,7 @@ def call(Map config = [:]) {
     String credentialsId     = config.credentialsId ?: 'gmail-smtp'
     String appName           = config.appName ?: env.JOB_NAME
     String sonarDashboardUrl = config.sonarDashboardUrl ?: ''
+    String buildStatus       = currentBuild.currentResult ?: 'SUCCESS'
 
     echo "============================================================"
     echo "  [DevSecOps] Consolidating and Sending Security Reports"
@@ -76,7 +77,7 @@ def call(Map config = [:]) {
             echo "<html><body>"
             echo "<h2>DevSecOps Security Scan Report</h2>"
             echo "<p><b>Application:</b> ${appName}</p>"
-            echo "<p><b>Jenkins Build:</b> #${env.BUILD_NUMBER} (\${currentBuild?.currentResult ?: 'SUCCESS'})</p>"
+            echo "<p><b>Jenkins Build:</b> #${env.BUILD_NUMBER} (${buildStatus})</p>"
             echo "<p><b>Generated Reports:</b></p>"
             echo "<ul>"
             echo "\${HTML_ATTACHMENTS_LIST}"
