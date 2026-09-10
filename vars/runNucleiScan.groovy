@@ -88,33 +88,157 @@ def call(Map config = [:]) {
         EXTRA_FLAGS="\${EXTRA_FLAGS} -tags ${tags}"
     fi
 
-    # 5. Execute Nuclei scan
+    # 5. Execute Nuclei scan with full details
     echo "Starting Nuclei vulnerability scan against ${targetUrl}..."
     "\$NUCLEI_CMD" \
         -target "${targetUrl}" \
         -severity "${severity}" \
         -rate-limit ${rateLimit} \
         -no-interactsh \
-        -output "${reportDir}/nuclei-report.txt" \
+        -include-rr \
+        -output "${reportDir}/nuclei-raw.txt" \
         -json-export "${reportDir}/nuclei-report.json" \
+        -markdown-export "${reportDir}/nuclei-md" \
         \${EXTRA_FLAGS} \
         || true
 
-    # 6. Ensure human-readable report exists if no findings detected
+    # 6. Generate a comprehensive human-readable report
+    python3 -c "
+import json, os, glob
+
+report_json = '${reportDir}/nuclei-report.json'
+report_txt = '${reportDir}/nuclei-report.txt'
+report_html = '${reportDir}/nuclei-report.html'
+
+findings = []
+if os.path.isfile(report_json):
+    with open(report_json, 'r', errors='ignore') as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    findings.append(json.loads(line))
+                except Exception:
+                    pass
+
+# Generate Detailed Text Report
+with open(report_txt, 'w') as f:
+    f.write('=' * 80 + '\n')
+    f.write('                   DEVSECOPS NUCLEI DAST VULNERABILITY REPORT\n')
+    f.write('=' * 80 + '\n')
+    f.write(f'Target       : ${targetUrl}\n')
+    f.write(f'Severities   : ${severity}\n')
+    f.write(f'Total Issues : {len(findings)}\n')
+    f.write('=' * 80 + '\n\n')
+
+    if not findings:
+        f.write('STATUS: PASSED - No vulnerabilities identified matching configured severity levels.\n')
+    else:
+        for idx, item in enumerate(findings, 1):
+            info = item.get('info', {})
+            f.write(f'[{idx}] {info.get(\"name\", item.get(\"template-id\"))}\n')
+            f.write('-' * 80 + '\n')
+            f.write(f'Severity     : {info.get(\"severity\", \"unknown\").upper()}\n')
+            f.write(f'Template ID  : {item.get(\"template-id\", \"N/A\")}\n')
+            f.write(f'Matched URL  : {item.get(\"matched-at\", item.get(\"host\", \"N/A\"))}\n')
+            f.write(f'Type / Proto : {item.get(\"type\", \"http\")}\n')
+            if info.get('description'):
+                f.write(f'Description  : {info.get(\"description\").strip()}\n')
+            if info.get('reference'):
+                refs = info.get('reference')
+                if isinstance(refs, list):
+                    f.write('References   :\n  - ' + '\n  - '.join(refs) + '\n')
+                else:
+                    f.write(f'References   : {refs}\n')
+            if info.get('remediation'):
+                f.write(f'Remediation  : {info.get(\"remediation\").strip()}\n')
+            if item.get('extracted-results'):
+                f.write(f'Evidence     : {item.get(\"extracted-results\")}\n')
+            if item.get('curl-command'):
+                f.write(f'Reproduce    : {item.get(\"curl-command\")}\n')
+            f.write('\n' + '=' * 80 + '\n\n')
+
+# Generate Detailed HTML Report
+with open(report_html, 'w') as h:
+    h.write('''<!DOCTYPE html>
+<html>
+<head>
+<meta charset=\"utf-8\">
+<title>Nuclei Vulnerability Scan Report</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 30px; background: #f8fafc; color: #1e293b; }
+  h1 { color: #0f172a; margin-bottom: 5px; }
+  .summary { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px; }
+  .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 6px solid #94a3b8; }
+  .card.critical { border-left-color: #dc2626; }
+  .card.high { border-left-color: #ea580c; }
+  .card.medium { border-left-color: #f59e0b; }
+  .card.low { border-left-color: #3b82f6; }
+  .card.info { border-left-color: #64748b; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 12px; color: #fff; text-transform: uppercase; }
+  .badge.critical { background: #dc2626; }
+  .badge.high { background: #ea580c; }
+  .badge.medium { background: #f59e0b; }
+  .badge.low { background: #3b82f6; }
+  .badge.info { background: #64748b; }
+  .field { margin: 8px 0; font-size: 14px; }
+  .label { font-weight: 600; color: #475569; }
+  pre { background: #0f172a; color: #f1f5f9; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>🛡️ Nuclei DAST Security Report</h1>
+<div class=\"summary\">
+  <p><b>Target:</b> <a href=\"${targetUrl}\">${targetUrl}</a> | <b>Findings:</b> ''' + str(len(findings)) + '''</p>
+</div>
+''')
+    if not findings:
+        h.write('<div class=\"card low\"><p>✅ No security vulnerabilities identified matching the configured severities.</p></div>')
+    else:
+        for item in findings:
+            info = item.get('info', {})
+            sev = info.get('severity', 'info').lower()
+            h.write(f'''
+<div class=\"card {sev}\">
+  <div style=\"display:flex; justify-content:space-between; align-items:center;\">
+    <h3 style=\"margin:0;\">{info.get('name', item.get('template-id'))}</h3>
+    <span class=\"badge {sev}\">{sev}</span>
+  </div>
+  <div class=\"field\"><span class=\"label\">URL:</span> <code>{item.get('matched-at', item.get('host', ''))}</code></div>
+  <div class=\"field\"><span class=\"label\">Template:</span> {item.get('template-id', '')}</div>
+''')
+            if info.get('description'):
+                h.write(f'<div class=\"field\"><span class=\"label\">Description:</span> {info.get(\"description\")}</div>')
+            if info.get('remediation'):
+                h.write(f'<div class=\"field\"><span class=\"label\">Remediation:</span> <b>{info.get(\"remediation\")}</b></div>')
+            if item.get('curl-command'):
+                h.write(f'<div class=\"field\"><span class=\"label\">Curl Command:</span><pre>{item.get(\"curl-command\")}</pre></div>')
+            h.write('</div>')
+    h.write('</body></html>')
+" 2>/dev/null || true
+
+    # Fallback to standard text if Python is not present
     if [ ! -s "${reportDir}/nuclei-report.txt" ]; then
-        {
-            echo "============================================================"
-            echo "              PROJECTDISCOVERY NUCLEI DAST REPORT"
-            echo "============================================================"
-            echo "Target       : ${targetUrl}"
-            echo "Scan Date    : \$(date)"
-            echo "Severity     : ${severity}"
-            echo "Status       : Completed - No vulnerabilities identified."
-            echo "============================================================"
-        } > "${reportDir}/nuclei-report.txt"
+        if [ -s "${reportDir}/nuclei-raw.txt" ]; then
+            cp "${reportDir}/nuclei-raw.txt" "${reportDir}/nuclei-report.txt"
+        else
+            {
+                echo "============================================================"
+                echo "              PROJECTDISCOVERY NUCLEI DAST REPORT"
+                echo "============================================================"
+                echo "Target       : ${targetUrl}"
+                echo "Scan Date    : \$(date)"
+                echo "Severity     : ${severity}"
+                echo "Status       : Completed - No vulnerabilities identified."
+                echo "============================================================"
+            } > "${reportDir}/nuclei-report.txt"
+        fi
     fi
 
     echo "Nuclei report generated at ${reportDir}/nuclei-report.txt"
+    if [ -f "${reportDir}/nuclei-report.html" ]; then
+        echo "Nuclei HTML report generated at ${reportDir}/nuclei-report.html"
+    fi
     if [ -f "${reportDir}/nuclei-report.json" ]; then
         echo "Nuclei JSON export generated at ${reportDir}/nuclei-report.json"
     fi
