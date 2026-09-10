@@ -173,11 +173,11 @@ def call(Map config = [:]) {
             echo "  <div class='card'>"
 
             # Render markdown content safely to HTML
-            sed -e 's/^# \(.*\)/<h2>\1<\/h2>/' \
-                -e 's/^## \(.*\)/<h2>\1<\/h2>/' \
-                -e 's/^### \(.*\)/<h3>\1<\/h3>/' \
-                -e 's/^\*\*\(.*\)\*\*/<b>\1<\/b>/' \
-                -e 's/^---/<\/div><div class="card">/' \
+            sed -e 's/^# \\(.*\\)/<h2>\\1<\\/h2>/' \\
+                -e 's/^## \\(.*\\)/<h2>\\1<\\/h2>/' \\
+                -e 's/^### \\(.*\\)/<h3>\\1<\\/h3>/' \\
+                -e 's/^\\*\\*\\(.*\\)\\*\\*/<b>\\1<\\/b>/' \\
+                -e 's/^---/<\\/div><div class="card">/' \\
                 "${reportDir}/nuclei-detailed-report.md"
 
             echo "  </div>"
