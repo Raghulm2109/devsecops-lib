@@ -102,13 +102,17 @@ def call(Map config = [:]) {
         \${EXTRA_FLAGS} \
         || true
 
-    # 6. Generate a comprehensive human-readable report
-    python3 -c "
-import json, os, glob
+    # 6. Generate a comprehensive human-readable report via Python helper
+    cat << 'PYEOF' > "${reportDir}/generate_nuclei_report.py"
+import json
+import os
+import sys
 
-report_json = '${reportDir}/nuclei-report.json'
-report_txt = '${reportDir}/nuclei-report.txt'
-report_html = '${reportDir}/nuclei-report.html'
+report_json = sys.argv[1]
+report_txt = sys.argv[2]
+report_html = sys.argv[3]
+target_url = sys.argv[4]
+severity = sys.argv[5]
 
 findings = []
 if os.path.isfile(report_json):
@@ -122,12 +126,12 @@ if os.path.isfile(report_json):
                     pass
 
 # Generate Detailed Text Report
-with open(report_txt, 'w') as f:
+with open(report_txt, 'w', encoding='utf-8') as f:
     f.write('=' * 80 + '\n')
     f.write('                   DEVSECOPS NUCLEI DAST VULNERABILITY REPORT\n')
     f.write('=' * 80 + '\n')
-    f.write(f'Target       : ${targetUrl}\n')
-    f.write(f'Severities   : ${severity}\n')
+    f.write(f'Target       : {target_url}\n')
+    f.write(f'Severities   : {severity}\n')
     f.write(f'Total Issues : {len(findings)}\n')
     f.write('=' * 80 + '\n\n')
 
@@ -136,14 +140,20 @@ with open(report_txt, 'w') as f:
     else:
         for idx, item in enumerate(findings, 1):
             info = item.get('info', {})
-            f.write(f'[{idx}] {info.get(\"name\", item.get(\"template-id\"))}\n')
+            title = info.get('name') or item.get('template-id') or 'Unknown Vulnerability'
+            sev = str(info.get('severity', 'unknown')).upper()
+            tmpl_id = item.get('template-id', 'N/A')
+            matched = item.get('matched-at') or item.get('host') or 'N/A'
+            proto = item.get('type', 'http')
+
+            f.write(f'[{idx}] {title}\n')
             f.write('-' * 80 + '\n')
-            f.write(f'Severity     : {info.get(\"severity\", \"unknown\").upper()}\n')
-            f.write(f'Template ID  : {item.get(\"template-id\", \"N/A\")}\n')
-            f.write(f'Matched URL  : {item.get(\"matched-at\", item.get(\"host\", \"N/A\"))}\n')
-            f.write(f'Type / Proto : {item.get(\"type\", \"http\")}\n')
+            f.write(f'Severity     : {sev}\n')
+            f.write(f'Template ID  : {tmpl_id}\n')
+            f.write(f'Matched URL  : {matched}\n')
+            f.write(f'Type / Proto : {proto}\n')
             if info.get('description'):
-                f.write(f'Description  : {info.get(\"description\").strip()}\n')
+                f.write(f'Description  : {str(info.get("description")).strip()}\n')
             if info.get('reference'):
                 refs = info.get('reference')
                 if isinstance(refs, list):
@@ -151,71 +161,84 @@ with open(report_txt, 'w') as f:
                 else:
                     f.write(f'References   : {refs}\n')
             if info.get('remediation'):
-                f.write(f'Remediation  : {info.get(\"remediation\").strip()}\n')
+                f.write(f'Remediation  : {str(info.get("remediation")).strip()}\n')
             if item.get('extracted-results'):
-                f.write(f'Evidence     : {item.get(\"extracted-results\")}\n')
+                f.write(f'Evidence     : {item.get("extracted-results")}\n')
             if item.get('curl-command'):
-                f.write(f'Reproduce    : {item.get(\"curl-command\")}\n')
+                f.write(f'Reproduce    : {item.get("curl-command")}\n')
             f.write('\n' + '=' * 80 + '\n\n')
 
 # Generate Detailed HTML Report
-with open(report_html, 'w') as h:
-    h.write('''<!DOCTYPE html>
+with open(report_html, 'w', encoding='utf-8') as h:
+    h.write(f'''<!DOCTYPE html>
 <html>
 <head>
-<meta charset=\"utf-8\">
+<meta charset="utf-8">
 <title>Nuclei Vulnerability Scan Report</title>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 30px; background: #f8fafc; color: #1e293b; }
-  h1 { color: #0f172a; margin-bottom: 5px; }
-  .summary { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px; }
-  .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 6px solid #94a3b8; }
-  .card.critical { border-left-color: #dc2626; }
-  .card.high { border-left-color: #ea580c; }
-  .card.medium { border-left-color: #f59e0b; }
-  .card.low { border-left-color: #3b82f6; }
-  .card.info { border-left-color: #64748b; }
-  .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 12px; color: #fff; text-transform: uppercase; }
-  .badge.critical { background: #dc2626; }
-  .badge.high { background: #ea580c; }
-  .badge.medium { background: #f59e0b; }
-  .badge.low { background: #3b82f6; }
-  .badge.info { background: #64748b; }
-  .field { margin: 8px 0; font-size: 14px; }
-  .label { font-weight: 600; color: #475569; }
-  pre { background: #0f172a; color: #f1f5f9; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 30px; background: #f8fafc; color: #1e293b; }}
+  h1 {{ color: #0f172a; margin-bottom: 5px; }}
+  .summary {{ background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px; }}
+  .card {{ background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 6px solid #94a3b8; }}
+  .card.critical {{ border-left-color: #dc2626; }}
+  .card.high {{ border-left-color: #ea580c; }}
+  .card.medium {{ border-left-color: #f59e0b; }}
+  .card.low {{ border-left-color: #3b82f6; }}
+  .card.info {{ border-left-color: #64748b; }}
+  .badge {{ display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 12px; color: #fff; text-transform: uppercase; }}
+  .badge.critical {{ background: #dc2626; }}
+  .badge.high {{ background: #ea580c; }}
+  .badge.medium {{ background: #f59e0b; }}
+  .badge.low {{ background: #3b82f6; }}
+  .badge.info {{ background: #64748b; }}
+  .field {{ margin: 8px 0; font-size: 14px; }}
+  .label {{ font-weight: 600; color: #475569; }}
+  pre {{ background: #0f172a; color: #f1f5f9; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }}
 </style>
 </head>
 <body>
-<h1>🛡️ Nuclei DAST Security Report</h1>
-<div class=\"summary\">
-  <p><b>Target:</b> <a href=\"${targetUrl}\">${targetUrl}</a> | <b>Findings:</b> ''' + str(len(findings)) + '''</p>
+<h1>Nuclei DAST Security Report</h1>
+<div class="summary">
+  <p><b>Target:</b> <a href="{target_url}">{target_url}</a> | <b>Total Findings:</b> {len(findings)}</p>
 </div>
 ''')
     if not findings:
-        h.write('<div class=\"card low\"><p>✅ No security vulnerabilities identified matching the configured severities.</p></div>')
+        h.write('<div class="card low"><p>No security vulnerabilities identified matching the configured severities.</p></div>')
     else:
         for item in findings:
             info = item.get('info', {})
-            sev = info.get('severity', 'info').lower()
+            sev = str(info.get('severity', 'info')).lower()
+            title = info.get('name') or item.get('template-id') or 'Finding'
+            matched = item.get('matched-at') or item.get('host') or ''
+            tmpl_id = item.get('template-id', '')
             h.write(f'''
-<div class=\"card {sev}\">
-  <div style=\"display:flex; justify-content:space-between; align-items:center;\">
-    <h3 style=\"margin:0;\">{info.get('name', item.get('template-id'))}</h3>
-    <span class=\"badge {sev}\">{sev}</span>
+<div class="card {sev}">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h3 style="margin:0;">{title}</h3>
+    <span class="badge {sev}">{sev}</span>
   </div>
-  <div class=\"field\"><span class=\"label\">URL:</span> <code>{item.get('matched-at', item.get('host', ''))}</code></div>
-  <div class=\"field\"><span class=\"label\">Template:</span> {item.get('template-id', '')}</div>
+  <div class="field"><span class="label">URL:</span> <code>{matched}</code></div>
+  <div class="field"><span class="label">Template:</span> {tmpl_id}</div>
 ''')
             if info.get('description'):
-                h.write(f'<div class=\"field\"><span class=\"label\">Description:</span> {info.get(\"description\")}</div>')
+                h.write(f'<div class="field"><span class="label">Description:</span> {info.get("description")}</div>')
             if info.get('remediation'):
-                h.write(f'<div class=\"field\"><span class=\"label\">Remediation:</span> <b>{info.get(\"remediation\")}</b></div>')
+                h.write(f'<div class="field"><span class="label">Remediation:</span> <b>{info.get("remediation")}</b></div>')
             if item.get('curl-command'):
-                h.write(f'<div class=\"field\"><span class=\"label\">Curl Command:</span><pre>{item.get(\"curl-command\")}</pre></div>')
+                h.write(f'<div class="field"><span class="label">Curl Command:</span><pre>{item.get("curl-command")}</pre></div>')
             h.write('</div>')
     h.write('</body></html>')
-" 2>/dev/null || true
+PYEOF
+
+    python3 "${reportDir}/generate_nuclei_report.py" \
+        "${reportDir}/nuclei-report.json" \
+        "${reportDir}/nuclei-report.txt" \
+        "${reportDir}/nuclei-report.html" \
+        "${targetUrl}" \
+        "${severity}" \
+        || true
+
+    rm -f "${reportDir}/generate_nuclei_report.py"
 
     # Fallback to standard text if Python is not present
     if [ ! -s "${reportDir}/nuclei-report.txt" ]; then
