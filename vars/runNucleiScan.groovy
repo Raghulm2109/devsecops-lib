@@ -20,7 +20,7 @@ def call(Map config = [:]) {
     String nucleiBin       = config.nucleiBin ?: '/usr/local/bin/nuclei'
     String severity        = config.severity ?: 'info,low,medium,high,critical'
     int rateLimit          = config.rateLimit ?: 150
-    String tags            = config.tags ?: ''
+    String tags            = config.tags ?: 'dast,misconfiguration,exposure,passive,headers,cookie,cors,ssl,tomcat,java'
     boolean updateTemplates = config.updateTemplates != null ? config.updateTemplates : true
     String extraArgs       = config.extraArgs ?: ''
 
