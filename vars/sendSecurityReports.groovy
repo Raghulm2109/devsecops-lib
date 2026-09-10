@@ -55,6 +55,11 @@ def call(Map config = [:]) {
             HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Titus Secret Scan:</b> Attached (titus-report.txt)</li>"
         fi
 
+        if [ -f "${reportDir}/nuclei-report.txt" ]; then
+            ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/nuclei-report.txt"
+            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST:</b> Attached (nuclei-report.txt)</li>"
+        fi
+
         if [ -f "${reportDir}/zap-report.html" ]; then
             ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/zap-report.html"
             HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>OWASP ZAP DAST:</b> Attached (zap-report.html)</li>"
