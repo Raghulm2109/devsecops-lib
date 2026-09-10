@@ -55,14 +55,12 @@ def call(Map config = [:]) {
             HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Titus Secret Scan:</b> Attached (titus-report.txt)</li>"
         fi
 
-        if [ -f "${reportDir}/nuclei-report.html" ]; then
-            ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/nuclei-report.html"
-            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST HTML Dashboard:</b> Attached (nuclei-report.html)</li>"
-        fi
-
-        if [ -f "${reportDir}/nuclei-report.txt" ]; then
+        if [ -f "${reportDir}/nuclei-report.md" ]; then
+            ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/nuclei-report.md"
+            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST Report:</b> Attached (nuclei-report.md)</li>"
+        elif [ -f "${reportDir}/nuclei-report.txt" ]; then
             ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/nuclei-report.txt"
-            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST Summary:</b> Attached (nuclei-report.txt)</li>"
+            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST Report:</b> Attached (nuclei-report.txt)</li>"
         fi
 
         if [ -z "\${HTML_ATTACHMENTS_LIST}" ]; then
