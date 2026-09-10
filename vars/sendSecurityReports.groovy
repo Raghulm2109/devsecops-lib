@@ -41,26 +41,38 @@ def call(Map config = [:]) {
         BOUNDARY="SecurityScanBoundary_\$(date +%s)"
         EMAIL_FILE="security-email.eml"
 
-        # Detect generated report files
+        # Sanitize Job Name for filenames (remove slashes, spaces)
+        SAFE_JOB_NAME="\$(echo "${env.JOB_NAME}" | tr '/' '_' | tr ' ' '_')"
+        PREFIX="\${SAFE_JOB_NAME}_build${env.BUILD_NUMBER}"
+
+        # Detect generated report files and prepare custom named attachments
         ATTACHMENTS=""
         HTML_ATTACHMENTS_LIST=""
 
         if [ -f "${reportDir}/snyk-sca-report.txt" ]; then
-            ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/snyk-sca-report.txt"
-            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Snyk SCA Report:</b> Attached (snyk-sca-report.txt)</li>"
+            SNYK_ATTACH="\${PREFIX}_snyk-sca-report.txt"
+            cp "${reportDir}/snyk-sca-report.txt" "/tmp/\${SNYK_ATTACH}"
+            ATTACHMENTS="\${ATTACHMENTS} /tmp/\${SNYK_ATTACH}"
+            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Snyk SCA Report:</b> Attached (\${SNYK_ATTACH})</li>"
         fi
 
         if [ -f "${reportDir}/titus-report.txt" ]; then
-            ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/titus-report.txt"
-            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Titus Secret Scan:</b> Attached (titus-report.txt)</li>"
+            TITUS_ATTACH="\${PREFIX}_titus-report.txt"
+            cp "${reportDir}/titus-report.txt" "/tmp/\${TITUS_ATTACH}"
+            ATTACHMENTS="\${ATTACHMENTS} /tmp/\${TITUS_ATTACH}"
+            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Titus Secret Scan:</b> Attached (\${TITUS_ATTACH})</li>"
         fi
 
         if [ -f "${reportDir}/nuclei-report.md" ]; then
-            ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/nuclei-report.md"
-            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST Report:</b> Attached (nuclei-report.md)</li>"
+            NUCLEI_ATTACH="\${PREFIX}_nuclei-report.md"
+            cp "${reportDir}/nuclei-report.md" "/tmp/\${NUCLEI_ATTACH}"
+            ATTACHMENTS="\${ATTACHMENTS} /tmp/\${NUCLEI_ATTACH}"
+            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST Report:</b> Attached (\${NUCLEI_ATTACH})</li>"
         elif [ -f "${reportDir}/nuclei-report.txt" ]; then
-            ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/nuclei-report.txt"
-            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST Report:</b> Attached (nuclei-report.txt)</li>"
+            NUCLEI_ATTACH="\${PREFIX}_nuclei-report.txt"
+            cp "${reportDir}/nuclei-report.txt" "/tmp/\${NUCLEI_ATTACH}"
+            ATTACHMENTS="\${ATTACHMENTS} /tmp/\${NUCLEI_ATTACH}"
+            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST Report:</b> Attached (\${NUCLEI_ATTACH})</li>"
         fi
 
         if [ -z "\${HTML_ATTACHMENTS_LIST}" ]; then
@@ -70,7 +82,7 @@ def call(Map config = [:]) {
         {
             echo "From: \${SMTP_USER}"
             echo "To: ${recipient}"
-            echo "Subject: Security Scan Report - ${appName} #${env.BUILD_NUMBER}"
+            echo "Subject: [${env.JOB_NAME} #${env.BUILD_NUMBER}] Security Scan Reports - ${appName}"
             echo "MIME-Version: 1.0"
             echo "Content-Type: multipart/mixed; boundary=\\"\${BOUNDARY}\\""
             echo ""
@@ -79,9 +91,10 @@ def call(Map config = [:]) {
             echo ""
             echo "<html><body>"
             echo "<h2>DevSecOps Security Scan Report</h2>"
+            echo "<p><b>Job Name:</b> ${env.JOB_NAME}</p>"
+            echo "<p><b>Build Number:</b> #${env.BUILD_NUMBER} (${buildStatus})</p>"
             echo "<p><b>Application:</b> ${appName}</p>"
-            echo "<p><b>Jenkins Build:</b> #${env.BUILD_NUMBER} (${buildStatus})</p>"
-            echo "<p><b>Generated Reports:</b></p>"
+            echo "<p><b>Attached Reports:</b></p>"
             echo "<ul>"
             echo "\${HTML_ATTACHMENTS_LIST}"
             echo "</ul>"
@@ -108,6 +121,11 @@ def call(Map config = [:]) {
             done
             echo "--\${BOUNDARY}--"
         } > "\${EMAIL_FILE}"
+
+        # Clean up temporary attachment files
+        for file in \${ATTACHMENTS}; do
+            rm -f "\$file"
+        done
 
         # Dispatch email via curl
         curl --url "smtp://smtp.gmail.com:587" --ssl-reqd \
