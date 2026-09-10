@@ -10,7 +10,6 @@ This repository contains modular, reusable DevSecOps security stages for Jenkins
     ├── runTitusScan.groovy        # Titus secret scanner
     ├── runSonarScan.groovy        # SonarQube CLI scanner
     ├── runNucleiScan.groovy       # ProjectDiscovery Nuclei DAST scanner
-    ├── runZapScan.groovy          # OWASP ZAP DAST scanner (legacy)
     └── sendSecurityReports.groovy # Email consolidation & notification
 ```
 

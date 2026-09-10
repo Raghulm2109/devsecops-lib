@@ -3,7 +3,7 @@
 /**
  * vars/sendSecurityReports.groovy
  * Consolidates and emails generated security reports.
- * Dynamically detects which reports were generated (Snyk, Titus, ZAP)
+ * Dynamically detects which reports were generated (Snyk, Titus, Nuclei)
  * and attaches only existing reports.
  *
  * Usage:
@@ -58,11 +58,6 @@ def call(Map config = [:]) {
         if [ -f "${reportDir}/nuclei-report.txt" ]; then
             ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/nuclei-report.txt"
             HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST:</b> Attached (nuclei-report.txt)</li>"
-        fi
-
-        if [ -f "${reportDir}/zap-report.html" ]; then
-            ATTACHMENTS="\${ATTACHMENTS} ${reportDir}/zap-report.html"
-            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>OWASP ZAP DAST:</b> Attached (zap-report.html)</li>"
         fi
 
         if [ -z "\${HTML_ATTACHMENTS_LIST}" ]; then
