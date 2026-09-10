@@ -125,109 +125,106 @@ if os.path.isfile(report_json):
                 except Exception:
                     pass
 
+sep_line = '=' * 80
+dash_line = '-' * 80
+
 # Generate Detailed Text Report
 with open(report_txt, 'w', encoding='utf-8') as f:
-    f.write('=' * 80 + '\n')
+    f.write(sep_line + '\n')
     f.write('                   DEVSECOPS NUCLEI DAST VULNERABILITY REPORT\n')
-    f.write('=' * 80 + '\n')
-    f.write(f'Target       : {target_url}\n')
-    f.write(f'Severities   : {severity}\n')
-    f.write(f'Total Issues : {len(findings)}\n')
-    f.write('=' * 80 + '\n\n')
+    f.write(sep_line + '\n')
+    f.write('Target       : ' + target_url + '\n')
+    f.write('Severities   : ' + severity + '\n')
+    f.write('Total Issues : ' + str(len(findings)) + '\n')
+    f.write(sep_line + '\n\n')
 
     if not findings:
         f.write('STATUS: PASSED - No vulnerabilities identified matching configured severity levels.\n')
     else:
         for idx, item in enumerate(findings, 1):
-            info = item.get('info', {})
+            info = item.get('info') or {}
             title = info.get('name') or item.get('template-id') or 'Unknown Vulnerability'
             sev = str(info.get('severity', 'unknown')).upper()
             tmpl_id = item.get('template-id', 'N/A')
             matched = item.get('matched-at') or item.get('host') or 'N/A'
             proto = item.get('type', 'http')
 
-            f.write(f'[{idx}] {title}\n')
-            f.write('-' * 80 + '\n')
-            f.write(f'Severity     : {sev}\n')
-            f.write(f'Template ID  : {tmpl_id}\n')
-            f.write(f'Matched URL  : {matched}\n')
-            f.write(f'Type / Proto : {proto}\n')
+            f.write('[' + str(idx) + '] ' + title + '\n')
+            f.write(dash_line + '\n')
+            f.write('Severity     : ' + sev + '\n')
+            f.write('Template ID  : ' + tmpl_id + '\n')
+            f.write('Matched URL  : ' + matched + '\n')
+            f.write('Type / Proto : ' + proto + '\n')
             if info.get('description'):
-                f.write(f'Description  : {str(info.get("description")).strip()}\n')
+                f.write('Description  : ' + str(info.get('description')).strip() + '\n')
             if info.get('reference'):
                 refs = info.get('reference')
                 if isinstance(refs, list):
                     f.write('References   :\n  - ' + '\n  - '.join(refs) + '\n')
                 else:
-                    f.write(f'References   : {refs}\n')
+                    f.write('References   : ' + str(refs) + '\n')
             if info.get('remediation'):
-                f.write(f'Remediation  : {str(info.get("remediation")).strip()}\n')
+                f.write('Remediation  : ' + str(info.get('remediation')).strip() + '\n')
             if item.get('extracted-results'):
-                f.write(f'Evidence     : {item.get("extracted-results")}\n')
+                f.write('Evidence     : ' + str(item.get('extracted-results')) + '\n')
             if item.get('curl-command'):
-                f.write(f'Reproduce    : {item.get("curl-command")}\n')
-            f.write('\n' + '=' * 80 + '\n\n')
+                f.write('Reproduce    : ' + str(item.get('curl-command')) + '\n')
+            f.write('\n' + sep_line + '\n\n')
 
 # Generate Detailed HTML Report
 with open(report_html, 'w', encoding='utf-8') as h:
-    h.write(f'''<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Nuclei Vulnerability Scan Report</title>
-<style>
-  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 30px; background: #f8fafc; color: #1e293b; }}
-  h1 {{ color: #0f172a; margin-bottom: 5px; }}
-  .summary {{ background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px; }}
-  .card {{ background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 6px solid #94a3b8; }}
-  .card.critical {{ border-left-color: #dc2626; }}
-  .card.high {{ border-left-color: #ea580c; }}
-  .card.medium {{ border-left-color: #f59e0b; }}
-  .card.low {{ border-left-color: #3b82f6; }}
-  .card.info {{ border-left-color: #64748b; }}
-  .badge {{ display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 12px; color: #fff; text-transform: uppercase; }}
-  .badge.critical {{ background: #dc2626; }}
-  .badge.high {{ background: #ea580c; }}
-  .badge.medium {{ background: #f59e0b; }}
-  .badge.low {{ background: #3b82f6; }}
-  .badge.info {{ background: #64748b; }}
-  .field {{ margin: 8px 0; font-size: 14px; }}
-  .label {{ font-weight: 600; color: #475569; }}
-  pre {{ background: #0f172a; color: #f1f5f9; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }}
-</style>
-</head>
-<body>
-<h1>Nuclei DAST Security Report</h1>
-<div class="summary">
-  <p><b>Target:</b> <a href="{target_url}">{target_url}</a> | <b>Total Findings:</b> {len(findings)}</p>
-</div>
-''')
+    h.write('<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n')
+    h.write('<title>Nuclei Vulnerability Scan Report</title>\n<style>\n')
+    h.write('body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 30px; background: #f8fafc; color: #1e293b; }\n')
+    h.write('h1 { color: #0f172a; margin-bottom: 5px; }\n')
+    h.write('.summary { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px; }\n')
+    h.write('.card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 6px solid #94a3b8; }\n')
+    h.write('.card.critical { border-left-color: #dc2626; }\n')
+    h.write('.card.high { border-left-color: #ea580c; }\n')
+    h.write('.card.medium { border-left-color: #f59e0b; }\n')
+    h.write('.card.low { border-left-color: #3b82f6; }\n')
+    h.write('.card.info { border-left-color: #64748b; }\n')
+    h.write('.badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: 600; font-size: 12px; color: #fff; text-transform: uppercase; }\n')
+    h.write('.badge.critical { background: #dc2626; }\n')
+    h.write('.badge.high { background: #ea580c; }\n')
+    h.write('.badge.medium { background: #f59e0b; }\n')
+    h.write('.badge.low { background: #3b82f6; }\n')
+    h.write('.badge.info { background: #64748b; }\n')
+    h.write('.field { margin: 8px 0; font-size: 14px; }\n')
+    h.write('.label { font-weight: 600; color: #475569; }\n')
+    h.write('pre { background: #0f172a; color: #f1f5f9; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }\n')
+    h.write('</style>\n</head>\n<body>\n')
+    h.write('<h1>Nuclei DAST Security Report</h1>\n')
+    h.write('<div class="summary">\n')
+    h.write('<p><b>Target:</b> <a href="' + target_url + '">' + target_url + '</a> | <b>Total Findings:</b> ' + str(len(findings)) + '</p>\n')
+    h.write('</div>\n')
+
     if not findings:
-        h.write('<div class="card low"><p>No security vulnerabilities identified matching the configured severities.</p></div>')
+        h.write('<div class="card low"><p>No security vulnerabilities identified matching the configured severities.</p></div>\n')
     else:
         for item in findings:
-            info = item.get('info', {})
+            info = item.get('info') or {}
             sev = str(info.get('severity', 'info')).lower()
             title = info.get('name') or item.get('template-id') or 'Finding'
             matched = item.get('matched-at') or item.get('host') or ''
             tmpl_id = item.get('template-id', '')
-            h.write(f'''
-<div class="card {sev}">
-  <div style="display:flex; justify-content:space-between; align-items:center;">
-    <h3 style="margin:0;">{title}</h3>
-    <span class="badge {sev}">{sev}</span>
-  </div>
-  <div class="field"><span class="label">URL:</span> <code>{matched}</code></div>
-  <div class="field"><span class="label">Template:</span> {tmpl_id}</div>
-''')
+
+            h.write('<div class="card ' + sev + '">\n')
+            h.write('  <div style="display:flex; justify-content:space-between; align-items:center;">\n')
+            h.write('    <h3 style="margin:0;">' + title + '</h3>\n')
+            h.write('    <span class="badge ' + sev + '">' + sev + '</span>\n')
+            h.write('  </div>\n')
+            h.write('  <div class="field"><span class="label">URL:</span> <code>' + matched + '</code></div>\n')
+            h.write('  <div class="field"><span class="label">Template:</span> ' + tmpl_id + '</div>\n')
             if info.get('description'):
-                h.write(f'<div class="field"><span class="label">Description:</span> {info.get("description")}</div>')
+                h.write('  <div class="field"><span class="label">Description:</span> ' + str(info.get('description')) + '</div>\n')
             if info.get('remediation'):
-                h.write(f'<div class="field"><span class="label">Remediation:</span> <b>{info.get("remediation")}</b></div>')
+                h.write('  <div class="field"><span class="label">Remediation:</span> <b>' + str(info.get('remediation')) + '</b></div>\n')
             if item.get('curl-command'):
-                h.write(f'<div class="field"><span class="label">Curl Command:</span><pre>{item.get("curl-command")}</pre></div>')
-            h.write('</div>')
-    h.write('</body></html>')
+                h.write('  <div class="field"><span class="label">Curl Command:</span><pre>' + str(item.get('curl-command')) + '</pre></div>\n')
+            h.write('</div>\n')
+
+    h.write('</body>\n</html>\n')
 PYEOF
 
     python3 "${reportDir}/generate_nuclei_report.py" \
