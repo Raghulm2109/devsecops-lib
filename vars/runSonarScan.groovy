@@ -65,9 +65,14 @@ def call(Map config = [:]) {
             else
                 echo "Creating dynamic sonar-project.properties fallback..."
                 SETTINGS_PATH="/tmp/sonar-project.properties"
-                cat << 'EOF' > /tmp/sonar-project.properties
-sonar.sources=src
-sonar.java.binaries=target/classes
+                SRC_DIR="src"
+                [ ! -d "\$SRC_DIR" ] && SRC_DIR="."
+                BIN_DIR="target/classes"
+                [ ! -d "\$BIN_DIR" ] && BIN_DIR="target"
+                [ ! -d "\$BIN_DIR" ] && BIN_DIR="."
+                cat << EOF > /tmp/sonar-project.properties
+sonar.sources=\$SRC_DIR
+sonar.java.binaries=\$BIN_DIR
 sonar.sourceEncoding=UTF-8
 EOF
             fi
