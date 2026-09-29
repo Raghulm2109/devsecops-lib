@@ -28,47 +28,26 @@ def call(Map config = [:]) {
         mkdir -p "${reportDir}"
         snyk --version || true
 
-        # Run Snyk SCA Scan and export JSON
-        snyk test --org=${orgId} \
-            --json-file-output="${reportDir}/snyk-sca-report.json" || true
+        # Run Snyk SCA Scan:
+        # 1. Output machine-readable JSON to snyk-sca-report.json
+        # 2. Capture human-readable CLI report directly to snyk-sca-report.txt (stripping ANSI color codes)
+        # 3. Mirror output to console via tee
+        NO_COLOR=1 TERM=dumb snyk test --org=${orgId} \
+            --json-file-output="${reportDir}/snyk-sca-report.json" 2>&1 \
+            | sed -E 's/(\\x1b)?\\[[0-9;]*[a-zA-Z]//g; s/\\b[0-9]+;[0-9]+m//g' \
+            | tee "${reportDir}/snyk-sca-report.txt" || true
 
-        # Format JSON into human-readable summary if report exists
-        if [ -f "${reportDir}/snyk-sca-report.json" ]; then
-            jq -r '
-                "============================================================",
-                "                    SNYK SCA REPORT",
-                "============================================================",
-                "",
-                "Status          : " + (if .ok == true then "PASS" else "FAIL" end),
-                "Summary         : " + (.summary // "N/A"),
-                "Package Manager : " + (.packageManager // "N/A"),
-                "Target          : " + (.displayTargetFile // "N/A"),
-                "Dependency Count: " + ((.dependencyCount // 0) | tostring),
-                "Vulnerabilities : " + ((.uniqueCount // 0) | tostring),
-                "",
-                "------------------------------------------------------------",
-                "VULNERABILITY DETAILS",
-                "------------------------------------------------------------",
-                "",
-                (if ((.vulnerabilities // []) | length) == 0 then
-                    "No known vulnerabilities found."
-                else
-                    (.vulnerabilities[] |
-                     "Package  : " + (.packageName // "N/A") +
-                     "\\nSeverity : " + (.severity // "N/A") +
-                     "\\nCVSS     : " + ((.cvssScore // "N/A") | tostring) +
-                     "\\nIssue    : " + (.title // .id // "N/A") +
-                     "\\nCVE      : " + (if ((.identifiers.CVE // []) | length) > 0 then (.identifiers.CVE | join(", ")) else "N/A" end) +
-                     "\\nFixed In : " + (if ((.fixedIn // []) | length) > 0 then (.fixedIn | join(", ")) else "Not available" end) + "\\n")
-                end),
-                "============================================================",
-                "                    END OF REPORT",
-                "============================================================"
-            ' "${reportDir}/snyk-sca-report.json" > "${reportDir}/snyk-sca-report.txt" || true
-            echo "Snyk report generated at ${reportDir}/snyk-sca-report.txt"
-        else
-            echo "Snyk JSON report not found." > "${reportDir}/snyk-sca-report.txt"
+        # Ensure the text report is never empty
+        if [ ! -s "${reportDir}/snyk-sca-report.txt" ]; then
+            if [ -s "${reportDir}/snyk-sca-report.json" ]; then
+                echo "Snyk scan completed. Raw output below:" > "${reportDir}/snyk-sca-report.txt"
+                cat "${reportDir}/snyk-sca-report.json" >> "${reportDir}/snyk-sca-report.txt"
+            else
+                echo "Snyk scan completed with no report output." > "${reportDir}/snyk-sca-report.txt"
+            fi
         fi
+
+        echo "Snyk report generated at ${reportDir}/snyk-sca-report.txt (\$(wc -c < "${reportDir}/snyk-sca-report.txt" 2>/dev/null || echo 0) bytes)"
         """
     }
 }

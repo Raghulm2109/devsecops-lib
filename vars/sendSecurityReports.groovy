@@ -49,26 +49,31 @@ def call(Map config = [:]) {
         ATTACHMENTS=""
         HTML_ATTACHMENTS_LIST=""
 
-        if [ -f "${reportDir}/snyk-sca-report.txt" ]; then
+        if [ -s "${reportDir}/snyk-sca-report.txt" ]; then
             SNYK_ATTACH="\${PREFIX}_snyk-sca-report.txt"
             cp "${reportDir}/snyk-sca-report.txt" "/tmp/\${SNYK_ATTACH}"
             ATTACHMENTS="\${ATTACHMENTS} /tmp/\${SNYK_ATTACH}"
             HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Snyk SCA Report:</b> Attached (\${SNYK_ATTACH})</li>"
+        elif [ -s "${reportDir}/snyk-sca-report.json" ]; then
+            SNYK_ATTACH="\${PREFIX}_snyk-sca-report.json"
+            cp "${reportDir}/snyk-sca-report.json" "/tmp/\${SNYK_ATTACH}"
+            ATTACHMENTS="\${ATTACHMENTS} /tmp/\${SNYK_ATTACH}"
+            HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Snyk SCA Report (JSON):</b> Attached (\${SNYK_ATTACH})</li>"
         fi
 
-        if [ -f "${reportDir}/titus-report.txt" ]; then
+        if [ -s "${reportDir}/titus-report.txt" ]; then
             TITUS_ATTACH="\${PREFIX}_titus-report.txt"
             cp "${reportDir}/titus-report.txt" "/tmp/\${TITUS_ATTACH}"
             ATTACHMENTS="\${ATTACHMENTS} /tmp/\${TITUS_ATTACH}"
             HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Titus Secret Scan:</b> Attached (\${TITUS_ATTACH})</li>"
         fi
 
-        if [ -f "${reportDir}/nuclei-report.md" ]; then
+        if [ -s "${reportDir}/nuclei-report.md" ]; then
             NUCLEI_ATTACH="\${PREFIX}_nuclei-report.md"
             cp "${reportDir}/nuclei-report.md" "/tmp/\${NUCLEI_ATTACH}"
             ATTACHMENTS="\${ATTACHMENTS} /tmp/\${NUCLEI_ATTACH}"
             HTML_ATTACHMENTS_LIST="\${HTML_ATTACHMENTS_LIST}<li><b>Nuclei DAST Report:</b> Attached (\${NUCLEI_ATTACH})</li>"
-        elif [ -f "${reportDir}/nuclei-report.txt" ]; then
+        elif [ -s "${reportDir}/nuclei-report.txt" ]; then
             NUCLEI_ATTACH="\${PREFIX}_nuclei-report.txt"
             cp "${reportDir}/nuclei-report.txt" "/tmp/\${NUCLEI_ATTACH}"
             ATTACHMENTS="\${ATTACHMENTS} /tmp/\${NUCLEI_ATTACH}"
@@ -108,7 +113,7 @@ def call(Map config = [:]) {
 
             # Loop through any discovered attachments
             for file in \${ATTACHMENTS}; do
-                if [ -f "\$file" ]; then
+                if [ -s "\$file" ]; then
                     filename=\$(basename "\$file")
                     echo "--\${BOUNDARY}"
                     echo "Content-Type: application/octet-stream; name=\\"\${filename}\\""
