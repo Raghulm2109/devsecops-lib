@@ -21,8 +21,8 @@ This repository contains modular, reusable DevSecOps security stages for Jenkins
    - **Name:** `devsecops-lib`
    - **Default version:** `main` (or `master`)
    - **Retrieval method:** Modern SCM -> **Git**
-   - **Project Repository:** URL to this repository (e.g. `git@bitbucket.org:your-org/jenkins-shared-library.git`)
-   - **Credentials:** Your Jenkins Git credential (e.g. `stgjenkins`)
+   - **Project Repository:** `https://github.com/Raghulm2109/devsecops-lib.git`
+   - **Credentials:** Your Jenkins Git credential (e.g. GitHub credentials / personal access token)
 4. Click **Save**.
 
 ## How to Use in any Jenkinsfile
