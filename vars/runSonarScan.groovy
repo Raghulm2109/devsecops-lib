@@ -137,6 +137,7 @@ EOF
                 -Dproject.settings="\$SETTINGS_PATH" \
                 -Dsonar.working.directory=/tmp/.scannerwork \
                 -Dsonar.host.url="${sonarHostUrl}" \
+                -Dsonar.token="\$SONAR_TOKEN" \
                 -Dsonar.login="\$SONAR_TOKEN" \
                 -Dsonar.projectName="${projectName}" \
                 -Dsonar.projectKey="${projectKey}" || true
@@ -146,6 +147,7 @@ EOF
                 -Dproject.settings="\$SETTINGS_PATH" \
                 -Dsonar.working.directory=/tmp/.scannerwork \
                 -Dsonar.host.url="${sonarHostUrl}" \
+                -Dsonar.token="\$SONAR_TOKEN" \
                 -Dsonar.login="\$SONAR_TOKEN" \
                 -Dsonar.projectName="${projectName}" \
                 -Dsonar.projectKey="${projectKey}" || true
